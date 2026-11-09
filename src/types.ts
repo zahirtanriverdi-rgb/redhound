@@ -29,7 +29,8 @@ export interface SourceFile {
   /** Path relative to the scan root, with forward slashes. */
   readonly path: string;
   readonly content: string;
-  readonly ast: ts.SourceFile;
+  /** Parsed syntax tree. Only present for JavaScript and TypeScript files. */
+  readonly ast?: ts.SourceFile;
 }
 
 export interface Rule {
@@ -48,5 +49,7 @@ export interface ScanError {
 export interface ScanResult {
   readonly findings: readonly Finding[];
   readonly filesScanned: number;
+  /** Findings hidden by `redhound-ignore` comments. */
+  readonly suppressed: number;
   readonly errors: readonly ScanError[];
 }

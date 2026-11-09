@@ -13,7 +13,19 @@ const IGNORED_DIRECTORIES = new Set([
   'coverage',
 ]);
 
-const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+const SCRIPT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+
+/** Firebase security rules: `firestore.rules`, `storage.rules`, `database.rules.json`. */
+const RULES_FILE_PATTERN = /\.rules(\.json)?$/;
+
+/** JavaScript or TypeScript, which the scanner parses into a syntax tree. */
+export function isScriptFile(filePath: string): boolean {
+  return SCRIPT_EXTENSIONS.has(path.extname(filePath));
+}
+
+function isScannable(fileName: string): boolean {
+  return isScriptFile(fileName) || RULES_FILE_PATTERN.test(fileName);
+}
 
 /** Throws a readable error unless `root` is an existing directory. */
 export async function assertDirectory(root: string): Promise<void> {
@@ -23,7 +35,7 @@ export async function assertDirectory(root: string): Promise<void> {
 }
 
 /**
- * Source files under `root` as sorted relative paths with forward slashes.
+ * Scannable files under `root` as sorted relative paths with forward slashes.
  * Symbolic links are not followed, so a scan never leaves the root.
  */
 export async function collectSourceFiles(root: string, relativeDir = ''): Promise<string[]> {
@@ -35,8 +47,7 @@ export async function collectSourceFiles(root: string, relativeDir = ''): Promis
       if (entry.isDirectory()) {
         return IGNORED_DIRECTORIES.has(entry.name) ? [] : collectSourceFiles(root, relativePath);
       }
-      const isSource = entry.isFile() && SOURCE_EXTENSIONS.has(path.extname(entry.name));
-      return isSource ? [relativePath] : [];
+      return entry.isFile() && isScannable(entry.name) ? [relativePath] : [];
     }),
   );
 

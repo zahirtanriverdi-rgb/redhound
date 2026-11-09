@@ -44,17 +44,44 @@ npx redhound scan --path ./src --severity high --format json
 
 ## Try it from source
 
-The CLI already runs from a clone, with two rules so far: `supabase-service-role-client` and `nextjs-route-missing-auth`.
+The CLI already runs from a clone, with five rules so far:
+
+| Rule | Severity | Catches |
+|------|----------|---------|
+| `supabase-service-role-client` | critical | Service role key behind a public env prefix or in a `'use client'` file |
+| `public-env-secret` | critical | Secrets, database URLs and server-only provider keys behind `NEXT_PUBLIC_`, `VITE_` and similar prefixes |
+| `stripe-webhook-unverified` | critical | Code that acts on Stripe events without `constructEvent()` |
+| `firebase-open-rules` | critical / medium | Firestore, Storage and Realtime Database rules open to everyone, including test mode |
+| `nextjs-route-missing-auth` | high | App Router `POST`/`PUT`/`PATCH`/`DELETE` handlers with no auth check |
 
 ```bash
 git clone https://github.com/zahirtanriverdi-rgb/redhound.git
 cd redhound
 npm install
 npm run build
-node dist/bin.js scan /path/to/your/app
+npm link
 ```
 
+`npm link` puts a `redhound` command on your PATH that points at this clone, so you can run it in any project:
+
+```bash
+redhound scan /path/to/your/app
+```
+
+While you work on Redhound, keep `npm run dev` running in the clone. It rebuilds on every save, and the linked `redhound` command picks up the change straight away.
+
 Exit code is `0` when the scan is clean, `1` when issues are found and `2` on an error, so it can gate a CI job.
+
+### Silencing a finding
+
+When a finding is a false positive, or the risk is handled somewhere Redhound cannot see (for example in `middleware.ts`), add a comment:
+
+```ts
+// redhound-ignore-next-line nextjs-route-missing-auth -- guarded by middleware
+export async function POST(request: Request) {
+```
+
+`// redhound-ignore-next-line` covers the next line and `// redhound-ignore` covers its own line. Without a rule id the comment covers every rule. The summary reports how many findings were silenced.
 
 ### Adding a rule
 

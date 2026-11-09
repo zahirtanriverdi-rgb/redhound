@@ -1,10 +1,6 @@
 import { descendants, envVariableName, hasUseClientDirective, locationOf } from '../ast.js';
 import type { Finding, Rule, SourceFile } from '../types.js';
-
-const SERVICE_ROLE_PATTERN = /SERVICE_ROLE/i;
-
-/** Prefixes that make a bundler inline the variable into browser JavaScript. */
-const PUBLIC_ENV_PREFIXES = ['NEXT_PUBLIC_', 'VITE_', 'PUBLIC_', 'EXPO_PUBLIC_', 'REACT_APP_'];
+import { SERVICE_ROLE_PATTERN, publicPrefixOf } from './shared/env.js';
 
 const REMEDIATION_EXAMPLE = `- // browser code
 - const supabase = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY)
@@ -23,13 +19,15 @@ export const supabaseServiceRoleClient: Rule = {
     'browser bundle has full read and write access to the whole database.',
 
   check(file: SourceFile): readonly Finding[] {
-    const isClientFile = hasUseClientDirective(file.ast);
+    const { ast } = file;
+    if (ast === undefined) return [];
+    const isClientFile = hasUseClientDirective(ast);
 
-    return descendants(file.ast).flatMap((node) => {
+    return descendants(ast).flatMap((node) => {
       const name = envVariableName(node);
       if (name === undefined || !SERVICE_ROLE_PATTERN.test(name)) return [];
 
-      const hasPublicPrefix = PUBLIC_ENV_PREFIXES.some((prefix) => name.startsWith(prefix));
+      const hasPublicPrefix = publicPrefixOf(name) !== undefined;
       if (!hasPublicPrefix && !isClientFile) return [];
 
       const reason = hasPublicPrefix
@@ -42,7 +40,7 @@ export const supabaseServiceRoleClient: Rule = {
           title: this.title,
           severity: this.severity,
           file: file.path,
-          ...locationOf(file.ast, node),
+          ...locationOf(ast, node),
           message: `${reason} The service role key bypasses Row Level Security.`,
           remediation: {
             summary:

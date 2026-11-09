@@ -15,11 +15,11 @@ const SEVERITY_COLORS: Readonly<Record<Severity, (text: string) => string>> = {
 export function formatTable(result: ScanResult): string {
   const fileCount = `${result.filesScanned} ${plural(result.filesScanned, 'file')}`;
   if (result.findings.length === 0) {
-    return `${pc.green('No issues found')} in ${fileCount}.\n`;
+    return `${pc.green('No issues found')} in ${fileCount}.${suppressedNote(result)}\n`;
   }
 
   const blocks = result.findings.map(formatFinding);
-  const summary = `Scanned ${fileCount}: ${summarise(result)}.`;
+  const summary = `Scanned ${fileCount}: ${summarise(result)}.${suppressedNote(result)}`;
   return `${[...blocks, pc.bold(summary)].join('\n\n')}\n`;
 }
 
@@ -53,6 +53,10 @@ function summarise(result: ScanResult): string {
     .map((severity) => `${counts[severity]} ${severity}`);
   const total = result.findings.length;
   return `${total} ${plural(total, 'issue')} (${parts.join(', ')})`;
+}
+
+function suppressedNote(result: ScanResult): string {
+  return result.suppressed > 0 ? ` ${result.suppressed} suppressed by redhound-ignore.` : '';
 }
 
 function plural(count: number, noun: string): string {

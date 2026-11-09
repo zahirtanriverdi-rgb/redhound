@@ -13,6 +13,7 @@ export function formatJson(result: ScanResult): string {
     summary: {
       filesScanned: result.filesScanned,
       findings: result.findings.length,
+      suppressed: result.suppressed,
       bySeverity: countBySeverity(result),
     },
     findings: result.findings,

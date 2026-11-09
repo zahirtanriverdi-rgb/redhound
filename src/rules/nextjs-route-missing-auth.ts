@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import { calleeName, descendants, hasExportModifier, locationOf } from '../ast.js';
 import type { Finding, Rule, SourceFile } from '../types.js';
+import { unverifiedStripeEvent } from './shared/stripe.js';
 
 // App Router route handlers: any `route.ts` below an `app/` directory (also under `src/`).
 const ROUTE_FILE_PATTERN = /(^|\/)app\/(.+\/)?route\.(ts|tsx|js|jsx|mjs)$/;
@@ -46,9 +47,12 @@ export const nextjsRouteMissingAuth: Rule = {
     'it: anyone can call the URL directly, so the handler itself must check who is calling.',
 
   check(file: SourceFile): readonly Finding[] {
-    if (!ROUTE_FILE_PATTERN.test(file.path)) return [];
+    const { ast } = file;
+    if (ast === undefined || !ROUTE_FILE_PATTERN.test(file.path)) return [];
+    // An unverified Stripe webhook gets the more specific stripe-webhook-unverified finding.
+    if (unverifiedStripeEvent(ast) !== undefined) return [];
 
-    return file.ast.statements
+    return ast.statements
       .flatMap(inlineHandlers)
       .filter((handler) => !hasAuthEvidence(handler.body))
       .map((handler) => ({
@@ -56,7 +60,7 @@ export const nextjsRouteMissingAuth: Rule = {
         title: this.title,
         severity: this.severity,
         file: file.path,
-        ...locationOf(file.ast, handler.nameNode),
+        ...locationOf(ast, handler.nameNode),
         message:
           `${handler.method} handler never checks who is calling. ` +
           'Anyone who knows the URL can run it.',

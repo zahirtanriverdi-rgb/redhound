@@ -5,7 +5,8 @@ import { errorMessage } from '../errors.js';
 import { builtinRules } from '../rules/index.js';
 import { meetsThreshold, severityRank } from '../severity.js';
 import type { Finding, Rule, ScanError, ScanResult, Severity } from '../types.js';
-import { assertDirectory, collectSourceFiles } from './files.js';
+import { assertDirectory, collectSourceFiles, isScriptFile } from './files.js';
+import { isSuppressed } from './suppressions.js';
 
 /** Larger files are almost always bundles or generated code, and slow to parse. */
 const MAX_FILE_SIZE_BYTES = 1024 * 1024;
@@ -27,10 +28,11 @@ export interface ScanOptions {
 interface FileOutcome {
   readonly scanned: boolean;
   readonly findings: readonly Finding[];
+  readonly suppressed: number;
   readonly error?: ScanError;
 }
 
-const SKIPPED: FileOutcome = { scanned: false, findings: [] };
+const SKIPPED: FileOutcome = { scanned: false, findings: [], suppressed: 0 };
 
 export async function scan(options: ScanOptions): Promise<ScanResult> {
   const { root, rules = builtinRules, minSeverity = 'low' } = options;
@@ -50,6 +52,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   return {
     findings,
     filesScanned: outcomes.filter((outcome) => outcome.scanned).length,
+    suppressed: outcomes.reduce((total, outcome) => total + outcome.suppressed, 0),
     errors: outcomes.flatMap((outcome) => (outcome.error ? [outcome.error] : [])),
   };
 }
@@ -61,14 +64,21 @@ async function scanFile(root: string, file: string, rules: readonly Rule[]): Pro
     if (size > MAX_FILE_SIZE_BYTES) return SKIPPED;
 
     const content = await readFile(absolutePath, 'utf8');
-    const scriptKind = SCRIPT_KINDS[path.extname(file)] ?? ts.ScriptKind.TS;
-    const ast = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
-    const source = { path: file, content, ast };
+    const source = { path: file, content, ast: isScriptFile(file) ? parse(file, content) : undefined };
 
-    return { scanned: true, findings: rules.flatMap((rule) => rule.check(source)) };
+    const lines = content.split('\n');
+    const all = rules.flatMap((rule) => rule.check(source));
+    const findings = all.filter((finding) => !isSuppressed(finding, lines));
+
+    return { scanned: true, findings, suppressed: all.length - findings.length };
   } catch (error: unknown) {
-    return { scanned: false, findings: [], error: { file, message: errorMessage(error) } };
+    return { ...SKIPPED, error: { file, message: errorMessage(error) } };
   }
+}
+
+function parse(file: string, content: string): ts.SourceFile {
+  const scriptKind = SCRIPT_KINDS[path.extname(file)] ?? ts.ScriptKind.TS;
+  return ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, scriptKind);
 }
 
 /** Most severe first, then by file and line so output is stable. */
