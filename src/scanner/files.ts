@@ -1,5 +1,8 @@
+import type { Dirent } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { errorMessage } from '../errors.js';
+import type { ScanError } from '../types.js';
 
 const IGNORED_DIRECTORIES = new Set([
   'node_modules',
@@ -34,22 +37,42 @@ export async function assertDirectory(root: string): Promise<void> {
   if (!stats.isDirectory()) throw new Error(`Path is not a directory: ${root}`);
 }
 
+export interface CollectedFiles {
+  readonly files: readonly string[];
+  /** Directories that could not be read (permissions, for example). They are skipped. */
+  readonly errors: readonly ScanError[];
+}
+
 /**
  * Scannable files under `root` as sorted relative paths with forward slashes.
  * Symbolic links are not followed, so a scan never leaves the root.
  */
-export async function collectSourceFiles(root: string, relativeDir = ''): Promise<string[]> {
-  const entries = await readdir(path.join(root, relativeDir), { withFileTypes: true });
+export async function collectSourceFiles(root: string, relativeDir = ''): Promise<CollectedFiles> {
+  let entries: Dirent[];
+  try {
+    entries = await readdir(path.join(root, relativeDir), { withFileTypes: true });
+  } catch (error: unknown) {
+    if (relativeDir === '') throw error;
+    return { files: [], errors: [{ file: relativeDir, message: errorMessage(error) }] };
+  }
 
   const nested = await Promise.all(
-    entries.map(async (entry): Promise<string[]> => {
+    entries.map(async (entry): Promise<CollectedFiles> => {
       const relativePath = relativeDir === '' ? entry.name : `${relativeDir}/${entry.name}`;
       if (entry.isDirectory()) {
-        return IGNORED_DIRECTORIES.has(entry.name) ? [] : collectSourceFiles(root, relativePath);
+        return IGNORED_DIRECTORIES.has(entry.name)
+          ? EMPTY
+          : collectSourceFiles(root, relativePath);
       }
-      return entry.isFile() && isScannable(entry.name) ? [relativePath] : [];
+      const isMatch = entry.isFile() && isScannable(entry.name);
+      return isMatch ? { files: [relativePath], errors: [] } : EMPTY;
     }),
   );
 
-  return nested.flat().sort();
+  return {
+    files: nested.flatMap((result) => result.files).sort(),
+    errors: nested.flatMap((result) => result.errors),
+  };
 }
+
+const EMPTY: CollectedFiles = { files: [], errors: [] };

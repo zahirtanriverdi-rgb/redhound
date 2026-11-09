@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
@@ -63,6 +63,22 @@ describe('scan', () => {
     const result = await scan({ root: fixturePath('nextjs-route-missing-auth', 'vulnerable') });
 
     expect(result.findings[0]?.file).toBe('app/api/posts/route.ts');
+  });
+
+  test('skips a directory it cannot read and keeps scanning the rest', async () => {
+    const locked = path.join(root, 'locked');
+    await mkdir(locked);
+    await writeFile(path.join(root, 'config.ts'), LEAKY_SOURCE);
+    await chmod(locked, 0o000);
+
+    try {
+      const result = await scan({ root });
+
+      expect(result.findings).toHaveLength(1);
+      expect(result.errors).toEqual([{ file: 'locked', message: expect.any(String) }]);
+    } finally {
+      await chmod(locked, 0o755);
+    }
   });
 
   test('rejects a root that does not exist', async () => {

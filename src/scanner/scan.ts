@@ -38,7 +38,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const { root, rules = builtinRules, minSeverity = 'low' } = options;
   await assertDirectory(root);
 
-  const files = await collectSourceFiles(root);
+  const { files, errors: unreadable } = await collectSourceFiles(root);
   const outcomes: FileOutcome[] = [];
   for (const file of files) {
     outcomes.push(await scanFile(root, file, rules));
@@ -53,7 +53,10 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     findings,
     filesScanned: outcomes.filter((outcome) => outcome.scanned).length,
     suppressed: outcomes.reduce((total, outcome) => total + outcome.suppressed, 0),
-    errors: outcomes.flatMap((outcome) => (outcome.error ? [outcome.error] : [])),
+    errors: [
+      ...unreadable,
+      ...outcomes.flatMap((outcome) => (outcome.error ? [outcome.error] : [])),
+    ],
   };
 }
 
