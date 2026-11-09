@@ -42,6 +42,27 @@ npx redhound scan --path ./src --severity high --format json
 | `--format` | `table` (default), `json`, `sarif` |
 | `--severity` | Minimum severity to report: `low`, `medium`, `high`, `critical` |
 
+## Try it from source
+
+The CLI already runs from a clone, with two rules so far: `supabase-service-role-client` and `nextjs-route-missing-auth`.
+
+```bash
+git clone https://github.com/zahirtanriverdi-rgb/redhound.git
+cd redhound
+npm install
+npm run build
+node dist/bin.js scan /path/to/your/app
+```
+
+Exit code is `0` when the scan is clean, `1` when issues are found and `2` on an error, so it can gate a CI job.
+
+### Adding a rule
+
+1. Create `src/rules/<rule-id>.ts` exporting an object that implements `Rule` from [src/types.ts](src/types.ts).
+2. List it in [src/rules/index.ts](src/rules/index.ts).
+3. Add `vulnerable/` and `safe/` samples under `tests/fixtures/<rule-id>/` and a test in `tests/rules/`.
+4. Run `npm test`.
+
 ## Roadmap
 
 - [ ] **Phase 1 — CLI and core rules.** TypeScript CLI, rule engine, first stack-specific rules with fix suggestions, terminal and JSON output.

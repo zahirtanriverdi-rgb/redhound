@@ -1,0 +1,46 @@
+{
+  "name": "redhound",
+  "version": "0.1.0",
+  "description": "Open-source CLI security scanner for AI-generated and vibe-coded apps.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "redhound": "dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "security",
+    "scanner",
+    "sast",
+    "cli",
+    "ai-generated-code",
+    "vibe-coding",
+    "nextjs",
+    "supabase"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zahirtanriverdi-rgb/redhound.git"
+  },
+  "dependencies": {
+    "commander": "^15.1.0",
+    "picocolors": "^1.1.1",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.0",
+    "vitest": "^5.1.0"
+  }
+}
