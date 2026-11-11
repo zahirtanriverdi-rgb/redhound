@@ -44,7 +44,7 @@ npx redhound scan --path ./src --severity high --format json
 
 ## Try it from source
 
-The CLI already runs from a clone, with six rules so far:
+The CLI already runs from a clone, with seven rules so far:
 
 | Rule | Severity | Catches |
 |------|----------|---------|
@@ -54,6 +54,7 @@ The CLI already runs from a clone, with six rules so far:
 | `firebase-open-rules` | critical / medium | Firestore, Storage and Realtime Database rules open to everyone, including test mode |
 | `nextjs-route-missing-auth` | high | App Router `POST`/`PUT`/`PATCH`/`DELETE` handlers with no auth check |
 | `express-route-missing-auth` | high | Express `post`/`put`/`patch`/`delete` routes with no auth middleware and no check in the handler |
+| `llm-prompt-injection` | high | Request input in the system prompt of OpenAI, Anthropic, Google GenAI, Vercel AI SDK or LangChain calls |
 
 ```bash
 git clone https://github.com/zahirtanriverdi-rgb/redhound.git
