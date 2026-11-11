@@ -29,6 +29,7 @@ interface ScanFlags {
   readonly path?: string;
   readonly format: Format;
   readonly severity: Severity;
+  readonly ignore: readonly string[];
 }
 
 /** Runs the CLI and resolves to the process exit code. Never throws. */
@@ -53,9 +54,14 @@ export async function runCli(argv: readonly string[], io: CliIo): Promise<number
         .choices(SEVERITIES)
         .default('low'),
     )
+    .option(
+      '-i, --ignore <pattern...>',
+      'skip files or directories (also read from .redhoundignore)',
+      [],
+    )
     .action(async (pathArgument: string | undefined, flags: ScanFlags) => {
       const root = path.resolve(pathArgument ?? flags.path ?? '.');
-      const result = await scan({ root, minSeverity: flags.severity });
+      const result = await scan({ root, minSeverity: flags.severity, ignore: flags.ignore });
 
       io.stdout(FORMATTERS[flags.format](result));
       for (const error of result.errors) {

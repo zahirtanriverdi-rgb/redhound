@@ -3,6 +3,7 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { errorMessage } from '../errors.js';
 import type { ScanError } from '../types.js';
+import type { IgnoreMatcher } from './ignore.js';
 
 const IGNORED_DIRECTORIES = new Set([
   'node_modules',
@@ -47,7 +48,11 @@ export interface CollectedFiles {
  * Scannable files under `root` as sorted relative paths with forward slashes.
  * Symbolic links are not followed, so a scan never leaves the root.
  */
-export async function collectSourceFiles(root: string, relativeDir = ''): Promise<CollectedFiles> {
+export async function collectSourceFiles(
+  root: string,
+  isIgnored: IgnoreMatcher = () => false,
+  relativeDir = '',
+): Promise<CollectedFiles> {
   let entries: Dirent[];
   try {
     entries = await readdir(path.join(root, relativeDir), { withFileTypes: true });
@@ -59,10 +64,11 @@ export async function collectSourceFiles(root: string, relativeDir = ''): Promis
   const nested = await Promise.all(
     entries.map(async (entry): Promise<CollectedFiles> => {
       const relativePath = relativeDir === '' ? entry.name : `${relativeDir}/${entry.name}`;
+      if (isIgnored(relativePath)) return EMPTY;
       if (entry.isDirectory()) {
         return IGNORED_DIRECTORIES.has(entry.name)
           ? EMPTY
-          : collectSourceFiles(root, relativePath);
+          : collectSourceFiles(root, isIgnored, relativePath);
       }
       const isMatch = entry.isFile() && isScannable(entry.name);
       return isMatch ? { files: [relativePath], errors: [] } : EMPTY;

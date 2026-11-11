@@ -6,6 +6,7 @@ import { builtinRules } from '../rules/index.js';
 import { meetsThreshold, severityRank } from '../severity.js';
 import type { Finding, Rule, ScanError, ScanResult, Severity } from '../types.js';
 import { assertDirectory, collectSourceFiles, isScriptFile } from './files.js';
+import { createIgnoreMatcher, readIgnoreFile } from './ignore.js';
 import { isSuppressed } from './suppressions.js';
 
 /** Larger files are almost always bundles or generated code, and slow to parse. */
@@ -23,6 +24,8 @@ export interface ScanOptions {
   readonly root: string;
   readonly rules?: readonly Rule[];
   readonly minSeverity?: Severity;
+  /** Extra ignore patterns, added to those in `.redhoundignore`. */
+  readonly ignore?: readonly string[];
 }
 
 interface FileOutcome {
@@ -35,10 +38,11 @@ interface FileOutcome {
 const SKIPPED: FileOutcome = { scanned: false, findings: [], suppressed: 0 };
 
 export async function scan(options: ScanOptions): Promise<ScanResult> {
-  const { root, rules = builtinRules, minSeverity = 'low' } = options;
+  const { root, rules = builtinRules, minSeverity = 'low', ignore = [] } = options;
   await assertDirectory(root);
 
-  const { files, errors: unreadable } = await collectSourceFiles(root);
+  const isIgnored = createIgnoreMatcher([...(await readIgnoreFile(root)), ...ignore]);
+  const { files, errors: unreadable } = await collectSourceFiles(root, isIgnored);
   const outcomes: FileOutcome[] = [];
   for (const file of files) {
     outcomes.push(await scanFile(root, file, rules));

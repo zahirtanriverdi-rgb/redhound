@@ -1,24 +1,11 @@
 import ts from 'typescript';
-import { calleeName, descendants, hasExportModifier, locationOf } from '../ast.js';
+import { hasExportModifier, locationOf } from '../ast.js';
 import type { Finding, Rule, SourceFile } from '../types.js';
+import { MUTATING_METHODS, hasAuthEvidence } from './shared/auth.js';
 import { unverifiedStripeEvent } from './shared/stripe.js';
 
 // App Router route handlers: any `route.ts` below an `app/` directory (also under `src/`).
 const ROUTE_FILE_PATTERN = /(^|\/)app\/(.+\/)?route\.(ts|tsx|js|jsx|mjs)$/;
-
-/** Methods that change state. Public read-only GET endpoints are common and not flagged. */
-const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
-/** Call names that show the handler establishes who is calling. */
-const AUTH_CALL_PATTERNS = [
-  /^(auth|protect|currentUser|getServerSession|getToken|getAuth|verify|jwtVerify|validateRequest|constructEvent|constructEventAsync)$/,
-  /^(get|require|verify|check|assert|ensure|validate)(Current)?(Auth|User|Session|Token|Admin|Signature|ApiKey|Jwt|Role|Permission)/i,
-  /^(authenticate|authorize)/i,
-];
-
-/** Header names whose presence shows the handler reads a credential or a webhook signature. */
-const AUTH_HEADER_PATTERN =
-  /^(authorization|x-api-key|stripe-signature|svix-signature|x-hub-signature(-256)?)$/i;
 
 const REMEDIATION_EXAMPLE = `  export async function POST(request: Request) {
 +   const session = await auth()
@@ -98,15 +85,5 @@ function inlineHandlers(statement: ts.Statement): readonly Handler[] {
       return [];
     }
     return [{ method: name.text, nameNode: name, body: initializer }];
-  });
-}
-
-function hasAuthEvidence(handlerBody: ts.Node): boolean {
-  return descendants(handlerBody).some((node) => {
-    if (ts.isCallExpression(node)) {
-      const name = calleeName(node);
-      return name !== undefined && AUTH_CALL_PATTERNS.some((pattern) => pattern.test(name));
-    }
-    return ts.isStringLiteralLike(node) && AUTH_HEADER_PATTERN.test(node.text);
   });
 }

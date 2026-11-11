@@ -44,7 +44,7 @@ npx redhound scan --path ./src --severity high --format json
 
 ## Try it from source
 
-The CLI already runs from a clone, with five rules so far:
+The CLI already runs from a clone, with six rules so far:
 
 | Rule | Severity | Catches |
 |------|----------|---------|
@@ -53,6 +53,7 @@ The CLI already runs from a clone, with five rules so far:
 | `stripe-webhook-unverified` | critical | Code that acts on Stripe events without `constructEvent()` |
 | `firebase-open-rules` | critical / medium | Firestore, Storage and Realtime Database rules open to everyone, including test mode |
 | `nextjs-route-missing-auth` | high | App Router `POST`/`PUT`/`PATCH`/`DELETE` handlers with no auth check |
+| `express-route-missing-auth` | high | Express `post`/`put`/`patch`/`delete` routes with no auth middleware and no check in the handler |
 
 ```bash
 git clone https://github.com/zahirtanriverdi-rgb/redhound.git
@@ -71,6 +72,14 @@ redhound scan /path/to/your/app
 While you work on Redhound, keep `npm run dev` running in the clone. It rebuilds on every save, and the linked `redhound` command picks up the change straight away.
 
 Exit code is `0` when the scan is clean, `1` when issues are found and `2` on an error, so it can gate a CI job.
+
+### Skipping files and directories
+
+```bash
+redhound scan . --ignore worktrees generated tests/fixtures
+```
+
+Or list the patterns in a `.redhoundignore` file in the scanned directory, one per line (`#` starts a comment). A bare name such as `generated` skips it at any depth, a pattern with a slash such as `tests/fixtures` is matched from the root, and `*` matches within one path segment. `node_modules`, `.git`, `.next`, `dist` and `build` are always skipped.
 
 ### Silencing a finding
 

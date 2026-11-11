@@ -1,4 +1,5 @@
 import type { Rule } from '../types.js';
+import { expressRouteMissingAuth } from './express-route-missing-auth.js';
 import { firebaseOpenRules } from './firebase-open-rules.js';
 import { nextjsRouteMissingAuth } from './nextjs-route-missing-auth.js';
 import { publicEnvSecret } from './public-env-secret.js';
@@ -10,6 +11,7 @@ export const builtinRules: readonly Rule[] = [
   supabaseServiceRoleClient,
   publicEnvSecret,
   nextjsRouteMissingAuth,
+  expressRouteMissingAuth,
   stripeWebhookUnverified,
   firebaseOpenRules,
 ];
