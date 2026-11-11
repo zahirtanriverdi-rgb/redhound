@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { hasExportModifier, locationOf } from '../ast.js';
 import type { Finding, Rule, SourceFile } from '../types.js';
-import { MUTATING_METHODS, hasAuthEvidence } from './shared/auth.js';
+import { MUTATING_METHODS, PUBLIC_PATH_PATTERN, hasAuthEvidence } from './shared/auth.js';
 import { unverifiedStripeEvent } from './shared/stripe.js';
 
 // App Router route handlers: any `route.ts` below an `app/` directory (also under `src/`).
@@ -38,10 +38,12 @@ export const nextjsRouteMissingAuth: Rule = {
     if (ast === undefined || !ROUTE_FILE_PATTERN.test(file.path)) return [];
     // An unverified Stripe webhook gets the more specific stripe-webhook-unverified finding.
     if (unverifiedStripeEvent(ast) !== undefined) return [];
+    // Sign-in, sign-up and webhook routes must work without a session.
+    if (PUBLIC_PATH_PATTERN.test(routeDirectory(file.path))) return [];
 
     return ast.statements
       .flatMap(inlineHandlers)
-      .filter((handler) => !hasAuthEvidence(handler.body))
+      .filter((handler) => !hasAuthEvidence(handler.body, ast))
       .map((handler) => ({
         ruleId: this.id,
         title: this.title,
@@ -86,4 +88,9 @@ function inlineHandlers(statement: ts.Statement): readonly Handler[] {
     }
     return [{ method: name.text, nameNode: name, body: initializer }];
   });
+}
+
+/** `app/api/auth/session/route.ts` -> `/api/auth/session`. */
+function routeDirectory(filePath: string): string {
+  return filePath.replace(/^.*?(^|\/)app\//, '/').replace(/\/route\.[a-z]+$/, '');
 }

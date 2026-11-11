@@ -66,3 +66,10 @@ router.get('/api/other', async (req, res) => {
   const n = req.query.n;
   res.json({ n });
 });
+
+// A lookup table on an imported module, named like a constant.
+router.post('/api/views', async (req, res) => {
+  const t = views.TABLES[String(req.body.type)];
+  if (!t) return res.sendStatus(400);
+  res.json(await db.get(`SELECT user_id FROM ${t.table} WHERE id = ?`, [req.body.id]));
+});

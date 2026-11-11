@@ -23,6 +23,9 @@ const BOOLEAN_OPERATORS = new Set([
   ts.SyntaxKind.InKeyword,
 ]);
 
+/** `TABLES`, `SORT_COLUMNS`: the usual spelling of a fixed lookup table. */
+const CONSTANT_NAME_PATTERN = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
+
 /** How many variables and helper calls to follow back from an expression. */
 const MAX_TRACE_DEPTH = 8;
 
@@ -129,10 +132,14 @@ export function createRequestInputTracer(ast: ts.SourceFile): RequestInputTracer
   };
 
   /** `MAP[input]` where MAP is an object or array literal: the result is a value the server wrote. */
-  const isAllowListLookup = (node: ts.Node): boolean =>
-    ts.isElementAccessExpression(node) &&
-    ts.isIdentifier(node.expression) &&
-    isLiteralCollection(sourcesOfSymbol(checker.getSymbolAtLocation(node.expression)));
+  const isAllowListLookup = (node: ts.Node): boolean => {
+    if (!ts.isElementAccessExpression(node)) return false;
+    const table = node.expression;
+    // `TABLES[x]` or `views.TABLES[x]`: constant-case names are lookup tables the code wrote.
+    const tableName = ts.isIdentifier(table) ? table.text : ts.isPropertyAccessExpression(table) ? table.name.text : '';
+    if (CONSTANT_NAME_PATTERN.test(tableName)) return true;
+    return ts.isIdentifier(table) && isLiteralCollection(sourcesOfSymbol(checker.getSymbolAtLocation(table)));
+  };
 
   /** `Object.keys(x)` where x is an object literal: the keys are fixed in the code. */
   const isStaticKeyList = (node: ts.Node): boolean => {

@@ -35,7 +35,7 @@ describe('express-route-missing-auth', () => {
   test('accepts auth middleware, in-handler checks, router-wide guards, public auth paths and client calls', async () => {
     const result = await scan({ root: fixturePath('express-route-missing-auth', 'safe'), rules });
 
-    expect(result.filesScanned).toBe(3);
+    expect(result.filesScanned).toBe(5);
     expect(result.findings).toEqual([]);
   });
 });

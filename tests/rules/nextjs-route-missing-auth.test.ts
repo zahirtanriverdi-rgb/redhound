@@ -9,13 +9,21 @@ describe('nextjs-route-missing-auth', () => {
   test('flags mutating handlers that never check who is calling', async () => {
     const result = await scan({ root: fixturePath(rules[0]!.id, 'vulnerable'), rules });
 
-    const flagged = result.findings.map((f) => ({ line: f.line, message: f.message }));
+    const flagged = result.findings
+      .filter((f) => f.file === 'app/api/posts/route.ts')
+      .map((f) => ({ line: f.line, message: f.message }));
 
     expect(flagged).toHaveLength(2);
     expect(flagged[0]).toMatchObject({ line: 7 });
     expect(flagged[0]?.message).toContain('POST');
     expect(flagged[1]).toMatchObject({ line: 13 });
     expect(flagged[1]?.message).toContain('DELETE');
+  });
+
+  test('does not count looking up a user by id as an auth check', async () => {
+    const result = await scan({ root: fixturePath(rules[0]!.id, 'vulnerable'), rules });
+
+    expect(result.findings.map((f) => f.file)).toContain('app/api/users/[id]/route.ts');
   });
 
   test('does not flag read-only GET handlers', async () => {
@@ -29,7 +37,7 @@ describe('nextjs-route-missing-auth', () => {
 
     for (const finding of result.findings) {
       expect(finding.severity).toBe('high');
-      expect(finding.file).toBe('app/api/posts/route.ts');
+      expect(finding.file).toMatch(/^app\/api\/(posts|users\/\[id\])\/route\.ts$/);
       expect(finding.remediation.example).toBeDefined();
     }
   });
@@ -37,7 +45,7 @@ describe('nextjs-route-missing-auth', () => {
   test('accepts session checks, wrapped handlers, verified webhooks and non-route files', async () => {
     const result = await scan({ root: fixturePath(rules[0]!.id, 'safe'), rules });
 
-    expect(result.filesScanned).toBe(4);
+    expect(result.filesScanned).toBe(9);
     expect(result.findings).toEqual([]);
   });
 });

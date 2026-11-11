@@ -1,15 +1,14 @@
 import ts from 'typescript';
 import { calleeName, descendants, locationOf } from '../ast.js';
 import type { Finding, Rule, SourceFile } from '../types.js';
-import { MUTATING_METHODS, hasAuthEvidence, isAuthName } from './shared/auth.js';
+import {
+  MUTATING_METHODS,
+  PUBLIC_PATH_PATTERN,
+  hasAuthEvidence,
+  isAuthName,
+  localDefinition,
+} from './shared/auth.js';
 import { unverifiedStripeEvent } from './shared/stripe.js';
-
-/**
- * Paths that must work without a session: signing in, signing up, one-time codes,
- * third-party callbacks. Flagging them would only be noise.
- */
-const PUBLIC_PATH_PATTERN =
-  /(^|\/)(auth|login|log-in|signin|sign-in|logout|register|signup|sign-up|forgot[^/]*|reset[^/]*|password[^/]*|otp|magic-link|verify[^/]*|callback|oauth|refresh|token|webhooks?|unsubscribe|subscribe|health[^/]*|csp-report)(\/|$)/i;
 
 /** `req.user`, `req.session`, ...: identity set by an auth middleware registered elsewhere. */
 const REQUEST_IDENTITY_PROPERTIES = new Set([
@@ -20,6 +19,7 @@ const REQUEST_IDENTITY_PROPERTIES = new Set([
   'operator',
   'account',
   'principal',
+  'person',
   'currentUser',
 ]);
 const REQUEST_NAME_PATTERN = /^(req|request)$/;
@@ -60,8 +60,8 @@ export const expressRouteMissingAuth: Rule = {
     return descendants(ast)
       .flatMap(routeOf)
       .filter((route) => !PUBLIC_PATH_PATTERN.test(route.path))
-      .filter((route) => !route.middleware.some(isAuthMiddleware))
-      .filter((route) => !hasAuthEvidence(route.handler) && !readsRequestIdentity(route.handler))
+      .filter((route) => !route.middleware.some((m) => isAuthMiddleware(m, ast)))
+      .filter((route) => !hasAuthEvidence(route.handler, ast) && !readsRequestIdentity(route.handler))
       .map((route) => ({
         ruleId: this.id,
         title: this.title,
@@ -108,15 +108,20 @@ function routePath(argument: ts.Expression): string | undefined {
 }
 
 /** `authenticateUser`, `requireShop('x')`, `passport.authenticate('jwt')`, `...guard`. */
-function isAuthMiddleware(expression: ts.Expression): boolean {
-  if (ts.isSpreadElement(expression)) return isAuthMiddleware(expression.expression);
-  if (ts.isIdentifier(expression)) return isAuthName(expression.text);
+function isAuthMiddleware(expression: ts.Expression, ast: ts.SourceFile): boolean {
+  if (ts.isSpreadElement(expression)) return isAuthMiddleware(expression.expression, ast);
+  if (ts.isIdentifier(expression)) {
+    if (isAuthName(expression.text)) return true;
+    // `const upload = [tenantAuth(), grant('upload')]`: a bundle defined in the file.
+    const definition = localDefinition(expression.text, ast);
+    return definition !== undefined && hasAuthEvidence(definition, ast);
+  }
   if (ts.isPropertyAccessExpression(expression)) {
-    return isAuthName(expression.name.text) || isAuthMiddleware(expression.expression);
+    return isAuthName(expression.name.text) || isAuthMiddleware(expression.expression, ast);
   }
   if (ts.isCallExpression(expression)) {
     const name = calleeName(expression);
-    return (name !== undefined && isAuthName(name)) || isAuthMiddleware(expression.expression);
+    return (name !== undefined && isAuthName(name)) || isAuthMiddleware(expression.expression, ast);
   }
   return false;
 }
@@ -127,7 +132,7 @@ function hasRouterWideAuth(ast: ts.SourceFile): boolean {
     (node) =>
       ts.isCallExpression(node) &&
       calleeName(node) === 'use' &&
-      node.arguments.some(isAuthMiddleware),
+      node.arguments.some((argument) => isAuthMiddleware(argument, ast)),
   );
 }
 

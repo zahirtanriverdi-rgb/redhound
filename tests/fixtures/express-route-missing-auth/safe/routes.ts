@@ -51,3 +51,8 @@ router.post('/api/bonus/history', async (req, res) => {
   if (!(await loggedInCustomerOwnsPhone(req, req.body.phone))) return res.sendStatus(403);
   res.json(await bonusHistory(req.body.phone));
 });
+
+router.post('/api/ops/recompute', async (req: any, res) => {
+  if (!can(req.person, 'staff')) return res.sendStatus(403);
+  res.json(await recompute());
+});

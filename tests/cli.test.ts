@@ -28,7 +28,7 @@ describe('redhound scan', () => {
     const report = JSON.parse(result.stdout);
 
     expect(result.exitCode).toBe(1);
-    expect(report.summary).toMatchObject({ filesScanned: 1, findings: 2 });
+    expect(report.summary).toMatchObject({ filesScanned: 2, findings: 3 });
     expect(report.findings[0].ruleId).toBe('nextjs-route-missing-auth');
   });
 
