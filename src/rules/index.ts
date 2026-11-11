@@ -7,11 +7,13 @@ import { nextjsRouteMissingAuth } from './nextjs-route-missing-auth.js';
 import { publicEnvSecret } from './public-env-secret.js';
 import { sqlInjection } from './sql-injection.js';
 import { stripeWebhookUnverified } from './stripe-webhook-unverified.js';
+import { supabaseRls } from './supabase-rls.js';
 import { supabaseServiceRoleClient } from './supabase-service-role-client.js';
 
 /** Every built-in rule. To add one, create a file in this folder and list it here. */
 export const builtinRules: readonly Rule[] = [
   supabaseServiceRoleClient,
+  supabaseRls,
   publicEnvSecret,
   nextjsRouteMissingAuth,
   expressRouteMissingAuth,

@@ -27,8 +27,11 @@ export function isScriptFile(filePath: string): boolean {
   return SCRIPT_EXTENSIONS.has(path.extname(filePath));
 }
 
+/** SQL files: database migrations and schema dumps. */
+const SQL_FILE_PATTERN = /\.sql$/;
+
 function isScannable(fileName: string): boolean {
-  return isScriptFile(fileName) || RULES_FILE_PATTERN.test(fileName);
+  return isScriptFile(fileName) || RULES_FILE_PATTERN.test(fileName) || SQL_FILE_PATTERN.test(fileName);
 }
 
 /** Throws a readable error unless `root` is an existing directory. */

@@ -4,7 +4,7 @@ import ts from 'typescript';
 import { errorMessage } from '../errors.js';
 import { builtinRules } from '../rules/index.js';
 import { meetsThreshold, severityRank } from '../severity.js';
-import type { Finding, Rule, ScanError, ScanResult, Severity } from '../types.js';
+import type { Finding, Rule, ScanError, ScanResult, Severity, SourceFile } from '../types.js';
 import { assertDirectory, collectSourceFiles, isScriptFile } from './files.js';
 import { createIgnoreMatcher, readIgnoreFile } from './ignore.js';
 import { isSuppressed } from './suppressions.js';
@@ -32,6 +32,8 @@ interface FileOutcome {
   readonly scanned: boolean;
   readonly findings: readonly Finding[];
   readonly suppressed: number;
+  /** Kept for rules with a project check. */
+  readonly projectSource?: SourceFile;
   readonly error?: ScanError;
 }
 
@@ -48,15 +50,19 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     outcomes.push(await scanFile(root, file, rules));
   }
 
-  const findings = outcomes
-    .flatMap((outcome) => outcome.findings)
+  const projectSources = outcomes.flatMap((outcome) =>
+    outcome.projectSource ? [outcome.projectSource] : [],
+  );
+  const project = runProjectChecks(rules, projectSources);
+
+  const findings = [...outcomes.flatMap((outcome) => outcome.findings), ...project.findings]
     .filter((finding) => meetsThreshold(finding.severity, minSeverity))
     .sort(compareFindings);
 
   return {
     findings,
     filesScanned: outcomes.filter((outcome) => outcome.scanned).length,
-    suppressed: outcomes.reduce((total, outcome) => total + outcome.suppressed, 0),
+    suppressed: outcomes.reduce((total, outcome) => total + outcome.suppressed, project.suppressed),
     errors: [
       ...unreadable,
       ...outcomes.flatMap((outcome) => (outcome.error ? [outcome.error] : [])),
@@ -74,13 +80,34 @@ async function scanFile(root: string, file: string, rules: readonly Rule[]): Pro
     const source = { path: file, content, ast: isScriptFile(file) ? parse(file, content) : undefined };
 
     const lines = content.split('\n');
-    const all = rules.flatMap((rule) => rule.check(source));
+    const all = rules.flatMap((rule) => rule.check?.(source) ?? []);
     const findings = all.filter((finding) => !isSuppressed(finding, lines));
+    const needsProject = rules.some((rule) => rule.project?.appliesTo(file) === true);
 
-    return { scanned: true, findings, suppressed: all.length - findings.length };
+    return {
+      scanned: true,
+      findings,
+      suppressed: all.length - findings.length,
+      projectSource: needsProject ? { path: file, content } : undefined,
+    };
   } catch (error: unknown) {
     return { ...SKIPPED, error: { file, message: errorMessage(error) } };
   }
+}
+
+function runProjectChecks(
+  rules: readonly Rule[],
+  sources: readonly SourceFile[],
+): { readonly findings: readonly Finding[]; readonly suppressed: number } {
+  const linesByFile = new Map(sources.map((source) => [source.path, source.content.split('\n')]));
+  const all = rules.flatMap((rule) => {
+    const project = rule.project;
+    if (project === undefined) return [];
+    const matching = sources.filter((source) => project.appliesTo(source.path));
+    return matching.length > 0 ? project.check(matching) : [];
+  });
+  const findings = all.filter((finding) => !isSuppressed(finding, linesByFile.get(finding.file) ?? []));
+  return { findings, suppressed: all.length - findings.length };
 }
 
 function parse(file: string, content: string): ts.SourceFile {

@@ -25,7 +25,9 @@ function covers(line: string | undefined, directive: RegExp, ruleId: string): bo
   const match = line === undefined ? null : directive.exec(line);
   if (match === null) return false;
 
+  // `-- reason` ends the rule list, so dashed words in the reason are not read as rule ids.
   const ruleIds = (match[1] ?? '')
+    .split(/\s--\s|\s--$/)[0]!
     .split(/[\s,]+/)
     .filter((token) => RULE_ID_PATTERN.test(token));
   return ruleIds.length === 0 || ruleIds.includes(ruleId);

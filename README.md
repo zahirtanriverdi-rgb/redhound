@@ -44,10 +44,11 @@ npx redhound scan --path ./src --severity high --format json
 
 ## Try it from source
 
-The CLI already runs from a clone, with nine rules so far:
+The CLI already runs from a clone, with ten rules so far:
 
 | Rule | Severity | Catches |
 |------|----------|---------|
+| `supabase-rls` | critical / high / medium / low | Supabase tables without Row Level Security, and policies whose condition is `true`, read across all migrations in order |
 | `supabase-service-role-client` | critical | Service role key behind a public env prefix or in a `'use client'` file |
 | `public-env-secret` | critical | Secrets, database URLs and server-only provider keys behind `NEXT_PUBLIC_`, `VITE_` and similar prefixes |
 | `stripe-webhook-unverified` | critical | Code that acts on Stripe events without `constructEvent()` |

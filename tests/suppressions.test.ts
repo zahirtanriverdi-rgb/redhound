@@ -45,6 +45,12 @@ describe('suppression comments', () => {
     expect(result.findings).toEqual([]);
   });
 
+  test('words after -- are a reason, even when they contain dashes', async () => {
+    const result = await scanRoute(`// redhound-ignore-next-line -- guarded-by middleware\n${HANDLER}`);
+
+    expect(result.findings).toEqual([]);
+  });
+
   test('a comment naming a different rule does not hide the finding', async () => {
     const result = await scanRoute(`// redhound-ignore-next-line public-env-secret\n${HANDLER}`);
 

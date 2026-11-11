@@ -33,12 +33,25 @@ export interface SourceFile {
   readonly ast?: ts.SourceFile;
 }
 
+/**
+ * For rules that need several files at once, such as database migrations where a table is
+ * created in one file and secured in another.
+ */
+export interface ProjectCheck {
+  /** Whether the rule needs to see this file (path relative to the scan root). */
+  appliesTo(path: string): boolean;
+  /** Runs once per scan with every file `appliesTo` accepted, sorted by path. */
+  check(files: readonly SourceFile[]): readonly Finding[];
+}
+
+/** A rule implements `check` (one file at a time), `project` (all files together), or both. */
 export interface Rule {
   readonly id: string;
   readonly title: string;
   readonly severity: Severity;
   readonly description: string;
-  check(file: SourceFile): readonly Finding[];
+  check?(file: SourceFile): readonly Finding[];
+  readonly project?: ProjectCheck;
 }
 
 export interface ScanError {
