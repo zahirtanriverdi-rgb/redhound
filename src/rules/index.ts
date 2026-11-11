@@ -1,4 +1,5 @@
 import type { Rule } from '../types.js';
+import { commandInjection } from './command-injection.js';
 import { expressRouteMissingAuth } from './express-route-missing-auth.js';
 import { firebaseOpenRules } from './firebase-open-rules.js';
 import { llmPromptInjection } from './llm-prompt-injection.js';
@@ -16,6 +17,7 @@ export const builtinRules: readonly Rule[] = [
   expressRouteMissingAuth,
   stripeWebhookUnverified,
   sqlInjection,
+  commandInjection,
   llmPromptInjection,
   firebaseOpenRules,
 ];

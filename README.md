@@ -44,7 +44,7 @@ npx redhound scan --path ./src --severity high --format json
 
 ## Try it from source
 
-The CLI already runs from a clone, with eight rules so far:
+The CLI already runs from a clone, with nine rules so far:
 
 | Rule | Severity | Catches |
 |------|----------|---------|
@@ -55,6 +55,7 @@ The CLI already runs from a clone, with eight rules so far:
 | `nextjs-route-missing-auth` | high | App Router `POST`/`PUT`/`PATCH`/`DELETE` handlers with no auth check |
 | `express-route-missing-auth` | high | Express `post`/`put`/`patch`/`delete` routes with no auth middleware and no check in the handler |
 | `sql-injection` | critical | Request input written into SQL text for pg, mysql2, sqlite, knex, Sequelize and Prisma's unsafe raw queries |
+| `command-injection` | critical | Request input in `child_process` shell commands, in the program being run, or in arguments with `shell: true` |
 | `llm-prompt-injection` | high | Request input in the system prompt of OpenAI, Anthropic, Google GenAI, Vercel AI SDK or LangChain calls |
 
 ```bash
